@@ -5,6 +5,7 @@ const fs = require('fs');
 const dateFormat = require('date-fns/format');
 
 const config = require('./.config.xps');
+const glacier = require('./aws-glacier');
 
 const mountphrase = config.mount_phrase;
 const GPG_PASSPHRASE = config.gpg_pass_phrase;
@@ -55,7 +56,7 @@ function pipe(cmds) {
     const cmd = cmds.join(' | ');
 
     return run(cmd);
-}
+}new Buffer(2.5 * 1024 * 1024)
 
 function run(cmd, showOutput = false) {
     //return execSync(cmd);
@@ -182,5 +183,7 @@ function bundleAndEncrypt() {
 mountDrive();
 syncDirs();
 bundleAndEncrypt();
+console.log(`/tmp/${NOW}-code-repository.tar.bz.gpg`);
+glacier.upload(`/tmp/${NOW}-code-repository.tar.bz.gpg`);
 
 console.log('Done');
