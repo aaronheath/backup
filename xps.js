@@ -56,7 +56,7 @@ function pipe(cmds) {
     const cmd = cmds.join(' | ');
 
     return run(cmd);
-}new Buffer(2.5 * 1024 * 1024)
+}
 
 function run(cmd, showOutput = false) {
     //return execSync(cmd);
@@ -174,7 +174,9 @@ function bundleAndEncrypt() {
  * SEND TO AWS GLACIER
  */
 
-// TODO
+function upload() {
+    glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`);
+}
 
 /**
  * Init
@@ -183,7 +185,6 @@ function bundleAndEncrypt() {
 mountDrive();
 syncDirs();
 bundleAndEncrypt();
-console.log(`/tmp/${NOW}-code-repository.tar.bz.gpg`);
-glacier.upload(`/tmp/${NOW}-code-repository.tar.bz.gpg`);
+upload();
 
 console.log('Done');
