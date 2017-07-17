@@ -14,8 +14,10 @@ const GPG_PASSPHRASE = config.gpg_pass_phrase;
  * CONFIG
  ***********************************/
 
-const USB_DIR_TO_MOUNT = '/media/aaronheath/2CBF65160A60F336/xps';
-const MOUNTPOINT = '/media/aaronheath/2CBF65160A60F336/xps';
+const started = new Date();
+const EXTERNAL_DRIVE_MOUNTPOINT = '/media/aaronheath/2CBF65160A60F336';
+const USB_DIR_TO_MOUNT = `${EXTERNAL_DRIVE_MOUNTPOINT}/xps`;
+const MOUNTPOINT = `${EXTERNAL_DRIVE_MOUNTPOINT}/xps`;
 const TO = `${MOUNTPOINT}/backup`;
 const HOME = '/home/aaronheath';
 const HOME_TO = `${TO}/aaronheath`;
@@ -52,6 +54,24 @@ function mountDrive() {
     mount(mountphrase, toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
 }
 
+/**
+ * Unmount the encyrpted share and the external drive
+ */
+
+function unmountDrive() {
+    const mountReturn = execSync('mount').toString();
+
+    if(!mountReturn.includes(MOUNTPOINT)) {
+        return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`);
+    }
+
+    run(`sudo umount ${MOUNTPOINT}`);
+    console.log(`Unmounted encrypted share at ${MOUNTPOINT}`);
+
+    run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
+    console.log(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`);
+}
+
 function pipe(cmds) {
     const cmd = cmds.join(' | ');
 
@@ -59,8 +79,6 @@ function pipe(cmds) {
 }
 
 function run(cmd, showOutput = false) {
-    //return execSync(cmd);
-
     const options = {};
 
     if(showOutput) {
@@ -174,17 +192,28 @@ function bundleAndEncrypt() {
  * SEND TO AWS GLACIER
  */
 
-function upload() {
-    glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`);
+async function upload() {
+    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch(() => {
+        console.log('Upload failed!')
+    });
 }
 
 /**
  * Init
  */
 
-mountDrive();
-syncDirs();
-bundleAndEncrypt();
-upload();
+async function main() {
+    mountDrive();
+    syncDirs();
+    bundleAndEncrypt();
+    await upload();
+    unmountDrive();
+}
 
-console.log('Done');
+main().then(() => {
+    const duration = (new Date() - started) / 1000;
+    console.log(`Backup Duration: ${duration} seconds`);
+    console.log('Finished Backup!');
+}).catch((err) => {
+    console.error('Backup Failed!');
+});
