@@ -3,6 +3,7 @@
 const execSync = require('child_process').execSync;
 const fs = require('fs');
 const dateFormat = require('date-fns/format');
+const colors = require('colors');
 
 const config = require('./.config.xps');
 const glacier = require('./aws-glacier');
@@ -33,7 +34,7 @@ function mountDrive() {
     const mountReturn = execSync('mount').toString();
 
     if(mountReturn.includes(MOUNTPOINT)) {
-        return console.log(`${MOUNTPOINT} is already mounted!`);
+        return console.log(`${MOUNTPOINT} is already mounted!`.blue);
     }
 
     pipe([
@@ -62,14 +63,14 @@ function unmountDrive() {
     const mountReturn = execSync('mount').toString();
 
     if(!mountReturn.includes(MOUNTPOINT)) {
-        return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`);
+        return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`.blue);
     }
 
     run(`sudo umount ${MOUNTPOINT}`);
-    console.log(`Unmounted encrypted share at ${MOUNTPOINT}`);
+    console.log(`Unmounted encrypted share at ${MOUNTPOINT}`.blue);
 
     run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
-    console.log(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`);
+    console.log(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`.blue);
 }
 
 function pipe(cmds) {
@@ -107,7 +108,7 @@ function mount(passphrase, signature, pathToMount, pathToMountAt) {
 
     run(cmd);
 
-    console.log(`${pathToMount} has been mounted at ${pathToMountAt}!`);
+    console.log(`${pathToMount} has been mounted at ${pathToMountAt}!`.blue);
 }
 
 
@@ -121,7 +122,7 @@ function syncDirs() {
     if(!fs.existsSync(TO)) {
         fs.mkdirSync(TO);
 
-        console.log(`Created directory at ${TO}`);
+        console.log(`Created directory at ${TO}`.blue);
     }
 
     // Code Repositories
@@ -137,7 +138,7 @@ rsync -avh --delete --max-size="10000k"
 
     run(toOneLine(rsyncCode), true);
 
-    console.log(`Rsync'd ${CODE_DIR} to ${HOME_TO}`);
+    console.log(`Rsync'd ${CODE_DIR} to ${HOME_TO}`.blue);
 
     // Documents
     basicRsync(`${HOME}/Documents`, HOME_TO);
@@ -166,13 +167,13 @@ ${ROOT} ${SYSTEM_TO}
 
     run(toOneLine(rsyncSystemFiles), true);
 
-    console.log(`Rsync'd ${ROOT} to ${SYSTEM_TO}`);
+    console.log(`Rsync'd ${ROOT} to ${SYSTEM_TO}`.blue);
 }
 
 function basicRsync(from, to) {
     run(`rsync -avh --delete "${from}" "${to}"`, true);
 
-    console.log(`Rsync'd ${from} to ${to}`);
+    console.log(`Rsync'd ${from} to ${to}`.blue);
 }
 
 /**
@@ -185,7 +186,7 @@ function bundleAndEncrypt() {
     run(`gpg --yes --batch --passphrase="${GPG_PASSPHRASE}" -c "${TEMP_NAME}"`);
     unlink(TEMP_NAME);
 
-    console.log('Bundle and encryption completed.');
+    console.log('Bundle and encryption completed.'.blue);
 }
 
 /**
@@ -194,7 +195,7 @@ function bundleAndEncrypt() {
 
 async function upload() {
     return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch(() => {
-        console.log('Upload failed!')
+        console.log('Upload failed!'.red)
     });
 }
 
@@ -212,8 +213,8 @@ async function main() {
 
 main().then(() => {
     const duration = (new Date() - started) / 1000;
-    console.log(`Backup Duration: ${duration} seconds`);
-    console.log('Finished Backup!');
+    console.log(`Backup Duration: ${duration} seconds`.blue);
+    console.log('Finished Backup!'.green);
 }).catch((err) => {
-    console.error('Backup Failed!');
+    console.error('Backup Failed!'.red);
 });
