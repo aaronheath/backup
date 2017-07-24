@@ -4,12 +4,15 @@ const execSync = require('child_process').execSync;
 const fs = require('fs');
 const dateFormat = require('date-fns/format');
 const colors = require('colors');
+const Table = require('cli-table');
 
 const config = require('./.config.xps');
 const glacier = require('./aws-glacier');
 
 const mountphrase = config.mount_phrase;
 const GPG_PASSPHRASE = config.gpg_pass_phrase;
+
+const deltas = {start: new Date()};
 
 /***********************************
  * CONFIG
@@ -31,10 +34,12 @@ const PASSPHRASE_TEMP_FILE = '/tmp/passphrase.txt';
  */
 
 function mountDrive() {
+    msg('Evaluating whether to mount drive', 'blue');
+
     const mountReturn = execSync('mount').toString();
 
     if(mountReturn.includes(MOUNTPOINT)) {
-        return console.log(`${MOUNTPOINT} is already mounted!`.blue);
+        return msg(`${MOUNTPOINT} is already mounted!`, 'blue');
     }
 
     pipe([
@@ -53,10 +58,12 @@ function mountDrive() {
     unlink(PASSPHRASE_TEMP_FILE);
 
     mount(mountphrase, toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
+
+    msg(`${MOUNTPOINT} has been mounted!`, 'blue');
 }
 
 /**
- * Unmount the encyrpted share and the external drive
+ * Unmount the encrypted share and the external drive
  */
 
 function unmountDrive() {
@@ -67,10 +74,10 @@ function unmountDrive() {
     }
 
     run(`sudo umount ${MOUNTPOINT}`);
-    console.log(`Unmounted encrypted share at ${MOUNTPOINT}`.blue);
+    msg(`Unmounted encrypted share at ${MOUNTPOINT}`, 'blue');
 
     run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
-    console.log(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`.blue);
+    msg(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`, 'blue');
 }
 
 function pipe(cmds) {
@@ -107,11 +114,8 @@ function mount(passphrase, signature, pathToMount, pathToMountAt) {
     const cmd = `sudo mount -t ecryptfs -o key=passphrase:passphrase_passwd=${passphrase},no_sig_cache=yes,verbose=no,cryptfs_sig=${signature},ecryptfs_cipher=aes,ecryptfs_key_bytes=16,ecryptfs_passthrough=no,ecryptfs_enable_filename_crypto=yes,ecryptfs_fnek_sig=${signature} "${pathToMount}" "${pathToMountAt}"`;
 
     run(cmd);
-
-    console.log(`${pathToMount} has been mounted at ${pathToMountAt}!`.blue);
+    msg(`${pathToMount} has been mounted at ${pathToMountAt}!`, 'blue');
 }
-
-
 
 /**
  * Sync dirs from local to encrypted external
@@ -122,14 +126,14 @@ function syncDirs() {
     if(!fs.existsSync(TO)) {
         fs.mkdirSync(TO);
 
-        console.log(`Created directory at ${TO}`.blue);
+        msg(`Created directory at ${TO}`, 'blue');
     }
 
     // Code Repositories
     const CODE_DIR = `${HOME}/Code`;
 
     const rsyncCode = `
-rsync -avh --delete --max-size="10000k"
+rsync -ah --stats --delete --max-size="10000k"
 --exclude="node_modules"
 --exclude="vendor"
 --exclude=".vagrant"
@@ -137,8 +141,7 @@ rsync -avh --delete --max-size="10000k"
 `;
 
     run(toOneLine(rsyncCode), true);
-
-    console.log(`Rsync'd ${CODE_DIR} to ${HOME_TO}`.blue);
+    msg(`Rsync'd ${CODE_DIR} to ${HOME_TO}`, 'blue');
 
     // Documents
     basicRsync(`${HOME}/Documents`, HOME_TO);
@@ -156,7 +159,7 @@ rsync -avh --delete --max-size="10000k"
     const ROOT = '/';
 
     const rsyncSystemFiles = `
-sudo rsync -avh --delete
+sudo rsync -ah --stats --delete
 --exclude="_cacache"
 --include="/etc/***"
 --include="/root/***"
@@ -166,14 +169,12 @@ ${ROOT} ${SYSTEM_TO}
 `;
 
     run(toOneLine(rsyncSystemFiles), true);
-
-    console.log(`Rsync'd ${ROOT} to ${SYSTEM_TO}`.blue);
+    msg(`Rsync'd ${ROOT} to ${SYSTEM_TO}`, 'blue');
 }
 
 function basicRsync(from, to) {
-    run(`rsync -avh --delete "${from}" "${to}"`, true);
-
-    console.log(`Rsync'd ${from} to ${to}`.blue);
+    run(`rsync -ah --stats --delete "${from}" "${to}"`, true);
+    msg(`Rsync'd ${from} to ${to}`, 'blue');
 }
 
 /**
@@ -186,7 +187,7 @@ function bundleAndEncrypt() {
     run(`gpg --yes --batch --passphrase="${GPG_PASSPHRASE}" -c "${TEMP_NAME}"`);
     unlink(TEMP_NAME);
 
-    console.log('Bundle and encryption completed.'.blue);
+    msg('Bundle and encryption completed.', 'blue');
 }
 
 /**
@@ -195,26 +196,81 @@ function bundleAndEncrypt() {
 
 async function upload() {
     return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch(() => {
-        console.log('Upload failed!'.red)
+        msg('Upload failed!', 'red');
     });
+}
+
+/**
+ * Utils
+ * TODO BREAKOUT
+ */
+
+function headingMsg(_msg) {
+    rowStars();
+    txt(_msg, 'green');
+    rowStars();
+}
+
+function msg(_msg, color) {
+    txt(_msg, color);
+}
+
+function rowStars(color = 'green') {
+    txt('*******************************************', color);
+}
+
+function txt(msg, color) {
+    console.log(colors[color](msg))
 }
 
 /**
  * Init
  */
 
-async function main() {
-    mountDrive();
-    syncDirs();
-    bundleAndEncrypt();
-    await upload();
-    unmountDrive();
+function currentDelta(splitStart) {
+    const now = new Date();
+
+    return {overall: (now - deltas.start) / 1000, split: (now - splitStart) / 1000, rawSplit: now};
 }
 
-main().then(() => {
-    const duration = (new Date() - started) / 1000;
-    console.log(`Backup Duration: ${duration} seconds`.blue);
-    console.log('Finished Backup!'.green);
-}).catch((err) => {
-    console.error('Backup Failed!'.red);
+async function main() {
+    headingMsg(`XPS BACKUP
+Started at: ${started}`);
+
+    mountDrive();
+    deltas.mountDrive = currentDelta(deltas.start);
+
+    syncDirs();
+    deltas.syncDirs = currentDelta(deltas.mountDrive.rawSplit);
+
+    bundleAndEncrypt();
+    deltas.bundleAndEncrypt = currentDelta(deltas.syncDirs.rawSplit);
+
+    await upload();
+    deltas.upload = currentDelta(deltas.bundleAndEncrypt.rawSplit);
+
+    unmountDrive();
+    deltas.unmountDrive = currentDelta(deltas.upload.rawSplit);
+
+    const table = new Table({
+        head: ['Task', 'Duration (sec)', 'Overall (sec)'],
+    });
+
+    table.push(
+        ['Mount Drive', deltas.mountDrive.split, deltas.mountDrive.overall],
+        ['Sync Dirs', deltas.syncDirs.split, deltas.syncDirs.overall],
+        ['Bundle & Encrypt', deltas.bundleAndEncrypt.split, deltas.bundleAndEncrypt.overall],
+        ['Upload to Glacier', deltas.upload.split, deltas.upload.overall],
+        ['Unmount Drive', deltas.unmountDrive.split, deltas.unmountDrive.overall],
+    );
+
+    headingMsg('Backup Completed');
+    console.log(table.toString());
+    rowStars();
+}
+
+main().catch((err) => {
+    rowStars('red');
+    msg('Backup Failed', 'red');
+    rowStars('red');
 });
