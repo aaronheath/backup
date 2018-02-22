@@ -19,7 +19,8 @@ const deltas = {start: new Date()};
  ***********************************/
 
 const started = new Date();
-const EXTERNAL_DRIVE_MOUNTPOINT = '/media/aaronheath/2CBF65160A60F336';
+//const EXTERNAL_DRIVE_MOUNTPOINT = '/media/aaronheath/2CBF65160A60F336';
+const EXTERNAL_DRIVE_MOUNTPOINT = '/media/aaronheath/test';
 const USB_DIR_TO_MOUNT = `${EXTERNAL_DRIVE_MOUNTPOINT}/xps`;
 const MOUNTPOINT = `${EXTERNAL_DRIVE_MOUNTPOINT}/xps`;
 const TO = `${MOUNTPOINT}/backup`;
@@ -195,8 +196,9 @@ function bundleAndEncrypt() {
  */
 
 async function upload() {
-    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch(() => {
+    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch((err) => {
         msg('Upload failed!', 'red');
+        console.log(err);
     });
 }
 
