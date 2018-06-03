@@ -1,3 +1,6 @@
 .idea
 node_modules
 .config.xps.js
+.config.glacier.js
+.oauth-config.json
+.oauth-token.json

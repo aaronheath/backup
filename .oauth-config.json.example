@@ -1,0 +1,12 @@
+{
+  "client": {
+    "id": "Y",
+    "secret": "XXXXXXXXXXXXXXX"
+  },
+  "auth": {
+    "tokenHost": "https://example.com"
+  },
+  "tls": {
+    "validate": true
+  }
+}

@@ -206,7 +206,7 @@ function bundleAndEncrypt() {
  */
 
 async function upload() {
-    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`).catch(() => {
+    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`, true).catch(() => {
         msg('Upload failed!', 'red');
     });
 }

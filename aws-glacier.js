@@ -1,15 +1,18 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const aws = require('aws-sdk');
 const progress = require('ascii-progress');
-const Table = require('cli-table');
+const bo = require('basic-oauth2');
+
+const config = require('./.config.glacier');
 
 aws.config.update({region: 'ap-southeast-2'});
 
 const glacier = new aws.Glacier({apiVersion: '2012-06-01'});
-let _vaultName, _path, _debug, _buffer, _partSize, _numPartsLeft, _chunkCount, _startTime, _params, _sending, _completed, _treeHash;
+let _vaultName, _path, _debug, _buffer, _partSize, _numPartsLeft, _chunkCount, _startTime, _params, _sending, _completed, _treeHash, _notifyRemote;
 
-async function upload(vaultName, path, debug = false) {
-    setup(vaultName, path, debug);
+async function upload(vaultName, path, notifyRemote = false, debug = false) {
+    setup(vaultName, path, notifyRemote, debug);
 
     console.log('Initiating upload to', vaultName);
 
@@ -18,9 +21,10 @@ async function upload(vaultName, path, debug = false) {
     });
 }
 
-function setup(vaultName, path, debug) {
+function setup(vaultName, path, notifyRemote, debug) {
     _vaultName = vaultName;
     _path = path;
+    _notifyRemote = notifyRemote;
     _debug = debug;
 
     _buffer = fs.readFileSync(path);
@@ -104,7 +108,7 @@ function uploadPart(params, resolve, reject, multipart) {
 
         console.log('Completing upload...');
 
-        glacier.completeMultipartUpload(doneParams, (err, data) => {
+        glacier.completeMultipartUpload(doneParams, async (err, data) => {
             if(err) {
                 console.log('An error occurred while uploading the archive');
                 console.log(err);
@@ -116,10 +120,53 @@ function uploadPart(params, resolve, reject, multipart) {
                 console.log(`Archive ID:      ${data.archiveId}`);
                 console.log(`Checksum:        ${data.checksum}`);
 
+                if(_notifyRemote) {
+                    await sendNotificationToRemote(data);
+                }
+
                 resolve({duration: delta, data});
             }
         });
     });
+}
+
+async function fileHash(filename, algorithm = 'sha256') {
+    return new Promise((resolve, reject) => {
+        let shasum = crypto.createHash(algorithm);
+
+        try {
+            let s = fs.ReadStream(filename)
+            s.on('data', data => shasum.update(data));
+
+            s.on('end', () => {
+                const hash = shasum.digest('hex')
+                return resolve(hash);
+            });
+        } catch (error) {
+            return reject('Unable to generate checksum for uploaded file');
+        }
+    });
+}
+
+async function sendNotificationToRemote(data) {
+    const pathArray = _path.split('/');
+    const checksum = await fileHash(_path);
+
+    try {
+        const http = await bo.http();
+
+        await http.post(config.glacier_archive, {
+            archive_id: data.archiveId,
+            filename: pathArray[pathArray.length - 1],
+            vault: _vaultName,
+            filesize: fs.statSync(_path).size,
+            checksum,
+        });
+
+        console.log('Notification of AWS Glacier upload dispatched to remote server.');
+    } catch(error) {
+        console.error(error.request);
+    }
 }
 
 module.exports = {
