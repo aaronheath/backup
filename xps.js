@@ -130,10 +130,10 @@ function syncDirs() {
     }
 
     // Code Repositories
-    const CODE_DIR = `${HOME}/Code`;
+    const CODE_DIR = `${HOME}/code`;
 
     const rsyncCode = `
-rsync -ah --stats --delete --max-size="10000k"
+sudo rsync -ah --stats --delete --max-size="10000k"
 --exclude="node_modules"
 --exclude="vendor"
 --exclude=".vagrant"
@@ -154,6 +154,17 @@ rsync -ah --stats --delete --max-size="10000k"
 
     // Virtual Boxes
     basicRsync(`${HOME}/VirtualBox VMs`, HOME_TO);
+
+    // My Config Files
+    const rsyncMyConfigFiles = `
+sudo rsync -ah --stats --delete
+-f "- */"
+-f "+ *"
+${HOME} "${HOME_TO}/my-configs"
+`;
+
+    run(toOneLine(rsyncMyConfigFiles), true);
+    msg(`Rsync'd ${HOME} to "${HOME_TO}/my-configs"`, 'blue');
 
     // System files and configs
     const ROOT = '/';
@@ -183,7 +194,7 @@ function basicRsync(from, to) {
 
 function bundleAndEncrypt() {
     const TEMP_NAME = `/tmp/${NOW}-code-repository.tar.bz`;
-    run(`tar cvfj "${TEMP_NAME}" "${HOME_TO}/Code"`);
+    run(`tar cvfj "${TEMP_NAME}" "${HOME_TO}/code"`);
     run(`gpg --yes --batch --passphrase="${GPG_PASSPHRASE}" -c "${TEMP_NAME}"`);
     unlink(TEMP_NAME);
 
