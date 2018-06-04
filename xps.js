@@ -8,6 +8,7 @@ const Table = require('cli-table');
 
 const config = require('./.config.xps');
 const glacier = require('./aws-glacier');
+const utils = require('./utils');
 
 const mountphrase = config.mount_phrase;
 const GPG_PASSPHRASE = config.gpg_pass_phrase;
@@ -26,7 +27,7 @@ const TO = `${MOUNTPOINT}/backup`;
 const HOME = '/home/aaronheath';
 const HOME_TO = `${TO}/aaronheath`;
 const SYSTEM_TO = `${TO}/system`;
-const NOW = currentYMDHMS();
+// const NOW = currentYMDHMS();
 const PASSPHRASE_TEMP_FILE = '/tmp/passphrase.txt';
 
 /**
@@ -34,20 +35,20 @@ const PASSPHRASE_TEMP_FILE = '/tmp/passphrase.txt';
  */
 
 function mountDrive() {
-    msg('Evaluating whether to mount drive', 'blue');
+    utils.msg('Evaluating whether to mount drive', 'blue');
 
     const mountReturn = execSync('mount').toString();
 
     if(mountReturn.includes(MOUNTPOINT)) {
-        return msg(`${MOUNTPOINT} is already mounted!`, 'blue');
+        return utils.msg(`${MOUNTPOINT} is already mounted!`, 'blue');
     }
 
-    pipe([
+    utils.pipe([
         `printf "%s" "${mountphrase}"`,
         `ecryptfs-add-passphrase > "${PASSPHRASE_TEMP_FILE}"`,
     ]);
 
-    const sig = pipe([
+    const sig = utils.pipe([
         `tail -1 "${PASSPHRASE_TEMP_FILE}"`,
         'awk \'{print $6}\'',
         'sed "s/\\[//g"',
@@ -55,11 +56,11 @@ function mountDrive() {
         'sed "s/ //g"',
     ]).toString();
 
-    unlink(PASSPHRASE_TEMP_FILE);
+    utils.unlink(PASSPHRASE_TEMP_FILE);
 
     mount(mountphrase, toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
 
-    msg(`${MOUNTPOINT} has been mounted!`, 'blue');
+    utils.msg(`${MOUNTPOINT} has been mounted!`, 'blue');
 }
 
 /**
@@ -73,48 +74,48 @@ function unmountDrive() {
         return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`.blue);
     }
 
-    run(`sudo umount ${MOUNTPOINT}`);
-    msg(`Unmounted encrypted share at ${MOUNTPOINT}`, 'blue');
+    utils.run(`sudo umount ${MOUNTPOINT}`);
+    utils.msg(`Unmounted encrypted share at ${MOUNTPOINT}`, 'blue');
 
-    run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
-    msg(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`, 'blue');
+    utils.run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
+    utils.msg(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`, 'blue');
 }
 
-function pipe(cmds) {
-    const cmd = cmds.join(' | ');
-
-    return run(cmd);
-}
-
-function run(cmd, showOutput = false) {
-    const options = {};
-
-    if(showOutput) {
-        options.stdio = 'inherit';
-    }
-
-    return execSync(cmd, options);
-}
-
-function unlink(path) {
-    fs.unlinkSync(path);
-}
-
-function toOneLine(string, noSpace = false) {
-    return string.replace(/(\r\n|\n|\r)/gm, noSpace ? '' : ' ');
-}
-
-function currentYMDHMS() {
-    const now = new Date();
-
-    return dateFormat(now, 'YYYYMMDDHHmmss');
-}
+// function pipe(cmds) {
+//     const cmd = cmds.join(' | ');
+//
+//     return run(cmd);
+// }
+//
+// function run(cmd, showOutput = false) {
+//     const options = {};
+//
+//     if(showOutput) {
+//         options.stdio = 'inherit';
+//     }
+//
+//     return execSync(cmd, options);
+// }
+//
+// function unlink(path) {
+//     fs.unlinkSync(path);
+// }
+//
+// function toOneLine(string, noSpace = false) {
+//     return string.replace(/(\r\n|\n|\r)/gm, noSpace ? '' : ' ');
+// }
+//
+// function currentYMDHMS() {
+//     const now = new Date();
+//
+//     return dateFormat(now, 'YYYYMMDDHHmmss');
+// }
 
 function mount(passphrase, signature, pathToMount, pathToMountAt) {
     const cmd = `sudo mount -t ecryptfs -o key=passphrase:passphrase_passwd=${passphrase},no_sig_cache=yes,verbose=no,cryptfs_sig=${signature},ecryptfs_cipher=aes,ecryptfs_key_bytes=16,ecryptfs_passthrough=no,ecryptfs_enable_filename_crypto=yes,ecryptfs_fnek_sig=${signature} "${pathToMount}" "${pathToMountAt}"`;
 
-    run(cmd);
-    msg(`${pathToMount} has been mounted at ${pathToMountAt}!`, 'blue');
+    utils.run(cmd);
+    utils.msg(`${pathToMount} has been mounted at ${pathToMountAt}!`, 'blue');
 }
 
 /**
@@ -126,7 +127,7 @@ function syncDirs() {
     if(!fs.existsSync(TO)) {
         fs.mkdirSync(TO);
 
-        msg(`Created directory at ${TO}`, 'blue');
+        utils.msg(`Created directory at ${TO}`, 'blue');
     }
 
     // Code Repositories
@@ -140,20 +141,20 @@ sudo rsync -ah --stats --delete --max-size="10000k"
 "${CODE_DIR}" "${HOME_TO}"
 `;
 
-    run(toOneLine(rsyncCode), true);
-    msg(`Rsync'd ${CODE_DIR} to ${HOME_TO}`, 'blue');
+    utils.run(utils.toOneLine(rsyncCode), true);
+    utils.msg(`Rsync'd ${CODE_DIR} to ${HOME_TO}`, 'blue');
 
     // Documents
-    basicRsync(`${HOME}/Documents`, HOME_TO);
+    utils.basicRsync(`${HOME}/Documents`, HOME_TO);
 
     // Pictures
-    basicRsync(`${HOME}/Pictures`, HOME_TO);
+    utils.basicRsync(`${HOME}/Pictures`, HOME_TO);
 
     // Videos
-    basicRsync(`${HOME}/Videos`, HOME_TO);
+    utils.basicRsync(`${HOME}/Videos`, HOME_TO);
 
     // Virtual Boxes
-    basicRsync(`${HOME}/VirtualBox VMs`, HOME_TO);
+    utils.basicRsync(`${HOME}/VirtualBox VMs`, HOME_TO);
 
     // My Config Files
     const rsyncMyConfigFiles = `
@@ -163,8 +164,8 @@ sudo rsync -ah --stats --delete
 ${HOME} "${HOME_TO}/my-configs"
 `;
 
-    run(toOneLine(rsyncMyConfigFiles), true);
-    msg(`Rsync'd ${HOME} to "${HOME_TO}/my-configs"`, 'blue');
+    utils.run(utils.toOneLine(rsyncMyConfigFiles), true);
+    utils.msg(`Rsync'd ${HOME} to "${HOME_TO}/my-configs"`, 'blue');
 
     // System files and configs
     const ROOT = '/';
@@ -179,60 +180,60 @@ sudo rsync -ah --stats --delete
 ${ROOT} ${SYSTEM_TO}
 `;
 
-    run(toOneLine(rsyncSystemFiles), true);
-    msg(`Rsync'd ${ROOT} to ${SYSTEM_TO}`, 'blue');
+    utils.run(utils.toOneLine(rsyncSystemFiles), true);
+    utils.msg(`Rsync'd ${ROOT} to ${SYSTEM_TO}`, 'blue');
 }
 
-function basicRsync(from, to) {
-    run(`rsync -ah --stats --delete "${from}" "${to}"`, true);
-    msg(`Rsync'd ${from} to ${to}`, 'blue');
-}
-
-/**
- * BUNDLE CODE REPOSITORY BACKUP & ENCRYPT
- */
-
-function bundleAndEncrypt() {
-    const TEMP_NAME = `/tmp/${NOW}-code-repository.tar.bz`;
-    run(`tar cvfj "${TEMP_NAME}" "${HOME_TO}/code"`);
-    run(`gpg --yes --batch --passphrase="${GPG_PASSPHRASE}" -c "${TEMP_NAME}"`);
-    unlink(TEMP_NAME);
-
-    msg('Bundle and encryption completed.', 'blue');
-}
+// function basicRsync(from, to) {
+//     run(`rsync -ah --stats --delete "${from}" "${to}"`, true);
+//     msg(`Rsync'd ${from} to ${to}`, 'blue');
+// }
+//
+// /**
+//  * BUNDLE CODE REPOSITORY BACKUP & ENCRYPT
+//  */
+//
+// function bundleAndEncrypt() {
+//     const TEMP_NAME = `/tmp/${NOW}-code-repository.tar.bz`;
+//     run(`tar cvfj "${TEMP_NAME}" "${HOME_TO}/code"`);
+//     run(`gpg --yes --batch --passphrase="${GPG_PASSPHRASE}" -c "${TEMP_NAME}"`);
+//     unlink(TEMP_NAME);
+//
+//     msg('Bundle and encryption completed.', 'blue');
+// }
 
 /**
  * SEND TO AWS GLACIER
  */
 
-async function upload() {
-    return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`, true).catch(() => {
-        msg('Upload failed!', 'red');
-    });
-}
+// async function upload() {
+//     return await glacier.upload('CodeBackups', `/tmp/${NOW}-code-repository.tar.bz.gpg`, true).catch(() => {
+//         msg('Upload failed!', 'red');
+//     });
+// }
 
 /**
  * Utils
  * TODO BREAKOUT
  */
 
-function headingMsg(_msg) {
-    rowStars();
-    txt(_msg, 'green');
-    rowStars();
-}
-
-function msg(_msg, color) {
-    txt(_msg, color);
-}
-
-function rowStars(color = 'green') {
-    txt('*******************************************', color);
-}
-
-function txt(msg, color) {
-    console.log(colors[color](msg))
-}
+// function headingMsg(_msg) {
+//     rowStars();
+//     txt(_msg, 'green');
+//     rowStars();
+// }
+//
+// function msg(_msg, color) {
+//     txt(_msg, color);
+// }
+//
+// function rowStars(color = 'green') {
+//     txt('*******************************************', color);
+// }
+//
+// function txt(msg, color) {
+//     console.log(colors[color](msg))
+// }
 
 /**
  * Init
@@ -245,7 +246,7 @@ function currentDelta(splitStart) {
 }
 
 async function main() {
-    headingMsg(`XPS BACKUP
+    utils.headingMsg(`XPS BACKUP
 Started at: ${started}`);
 
     mountDrive();
@@ -254,10 +255,12 @@ Started at: ${started}`);
     syncDirs();
     deltas.syncDirs = currentDelta(deltas.mountDrive.rawSplit);
 
-    bundleAndEncrypt();
+    const vault = 'CodeBackups';
+
+    utils.bundleAndEncrypt(vault, `${HOME_TO}/code`, GPG_PASSPHRASE);
     deltas.bundleAndEncrypt = currentDelta(deltas.syncDirs.rawSplit);
 
-    await upload();
+    await upload(vault);
     deltas.upload = currentDelta(deltas.bundleAndEncrypt.rawSplit);
 
     unmountDrive();
@@ -275,13 +278,13 @@ Started at: ${started}`);
         ['Unmount Drive', deltas.unmountDrive.split, deltas.unmountDrive.overall],
     );
 
-    headingMsg('Backup Completed');
+    utils.headingMsg('Backup Completed');
     console.log(table.toString());
-    rowStars();
+    utils.rowStars();
 }
 
 main().catch((err) => {
-    rowStars('red');
-    msg('Backup Failed', 'red');
-    rowStars('red');
+    utils.rowStars('red');
+    utils.msg('Backup Failed', 'red');
+    utils.rowStars('red');
 });
