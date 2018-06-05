@@ -1,4 +1,0 @@
-module.exports = {
-    mount_phrase: 'password to mount encyrpted share',
-    gpg_pass_phrase: 'password to encrypt tar bundle',
-};

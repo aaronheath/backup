@@ -2,16 +2,16 @@
 
 const execSync = require('child_process').execSync;
 const fs = require('fs');
-const dateFormat = require('date-fns/format');
-const colors = require('colors');
+// const dateFormat = require('date-fns/format');
+// const colors = require('colors');
 const Table = require('cli-table');
 
-const config = require('./.config.xps');
-const glacier = require('./aws-glacier');
+const config = require('./.config');
+// const glacier = require('./aws-glacier');
 const utils = require('./utils');
 
 const mountphrase = config.mount_phrase;
-const GPG_PASSPHRASE = config.gpg_pass_phrase;
+// const GPG_PASSPHRASE = config.gpg_pass_phrase;
 
 const deltas = {start: new Date()};
 
@@ -257,7 +257,7 @@ Started at: ${started}`);
 
     const vault = 'CodeBackups';
 
-    utils.bundleAndEncrypt(vault, `${HOME_TO}/code`, GPG_PASSPHRASE);
+    utils.bundleAndEncrypt(vault, `${HOME_TO}/code`, config.gpg_pass_phrase);
     deltas.bundleAndEncrypt = currentDelta(deltas.syncDirs.rawSplit);
 
     await upload(vault);

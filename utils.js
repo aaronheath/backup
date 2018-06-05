@@ -2,7 +2,6 @@ const execSync = require('child_process').execSync;
 const fs = require('fs');
 const dateFormat = require('date-fns/format');
 const colors = require('colors');
-
 const glacier = require('./aws-glacier');
 
 const NOW = currentYMDHMS();
@@ -42,10 +41,6 @@ function basicRsync(from, to) {
     msg(`Rsync'd ${from} to ${to}`, 'blue');
 }
 
-/**
- * BUNDLE CODE REPOSITORY BACKUP & ENCRYPT
- */
-
 function bundleAndEncrypt(vault, dir, passphrase) {
     const TEMP_NAME = `/tmp/${NOW}-${vault}.tar.bz`;
     run(`tar cvfj "${TEMP_NAME}" "${dir}"`);
@@ -54,10 +49,6 @@ function bundleAndEncrypt(vault, dir, passphrase) {
 
     msg('Bundle and encryption completed.', 'blue');
 }
-
-/**
- * SEND TO AWS GLACIER
- */
 
 async function upload(vault) {
     return await glacier.upload(vault, `/tmp/${NOW}-${vault}.tar.bz.gpg`, true).catch(() => {

@@ -1,0 +1,11 @@
+module.exports = {
+    mount_phrase: 'password to mount encyrpted share',
+    gpg_pass_phrase: 'password to encrypt tar bundle',
+
+    // AWS Glacier remote logging endpoint
+    glacier_archive: 'https://example.com/api/glacier/archive',
+
+    // drop.js
+    drop_vault: 'VaultName',
+    drop_dir_path: '/path/to/directory',
+};
