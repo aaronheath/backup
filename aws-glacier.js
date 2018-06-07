@@ -168,10 +168,10 @@ async function sendNotificationToRemote(data) {
 
         console.log('Notification of AWS Glacier upload dispatched to remote server.');
     } catch(error) {
-        utils.rowStars('red');
-        utils.msg('Unable to dispatch notification of AWS Glacier upload to remote server.')
+        // utils.rowStars('red');
+        // utils.msg('Unable to dispatch notification of AWS Glacier upload to remote server.')
         console.error(error.response);
-        utils.rowStars('red');
+        // utils.rowStars('red');
     }
 }
 
