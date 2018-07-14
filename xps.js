@@ -58,7 +58,7 @@ function mountDrive() {
 
     utils.unlink(PASSPHRASE_TEMP_FILE);
 
-    mount(mountphrase, toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
+    mount(mountphrase, utils.toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
 
     utils.msg(`${MOUNTPOINT} has been mounted!`, 'blue');
 }
@@ -136,6 +136,7 @@ function syncDirs() {
     const rsyncCode = `
 sudo rsync -ah --stats --delete --max-size="10000k"
 --exclude="node_modules"
+--exclude="storage"
 --exclude="vendor"
 --exclude=".vagrant"
 "${CODE_DIR}" "${HOME_TO}"
@@ -260,7 +261,8 @@ Started at: ${started}`);
     utils.bundleAndEncrypt(vault, `${HOME_TO}/code`, config.gpg_pass_phrase);
     deltas.bundleAndEncrypt = currentDelta(deltas.syncDirs.rawSplit);
 
-    await upload(vault);
+    await utils.upload(vault);
+    // await glacier.upload(vault, `/tmp/${utils.NOW}-code-repository.tar.bz.gpg`, true);
     deltas.upload = currentDelta(deltas.bundleAndEncrypt.rawSplit);
 
     unmountDrive();
@@ -286,5 +288,6 @@ Started at: ${started}`);
 main().catch((err) => {
     utils.rowStars('red');
     utils.msg('Backup Failed', 'red');
+    console.log(err);
     utils.rowStars('red');
 });
