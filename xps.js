@@ -9,6 +9,7 @@ const Table = require('cli-table');
 const config = require('./.config');
 // const glacier = require('./aws-glacier');
 const utils = require('./utils');
+const xps = require('./xps-common');
 
 const mountphrase = config.mount_phrase;
 // const GPG_PASSPHRASE = config.gpg_pass_phrase;
@@ -28,58 +29,58 @@ const HOME = '/home/aaronheath';
 const HOME_TO = `${TO}/aaronheath`;
 const SYSTEM_TO = `${TO}/system`;
 // const NOW = currentYMDHMS();
-const PASSPHRASE_TEMP_FILE = '/tmp/passphrase.txt';
+// const PASSPHRASE_TEMP_FILE = '/tmp/passphrase.txt';
 
 /**
  * Mount the encyrpted share on external drive
  */
 
-function mountDrive() {
-    utils.msg('Evaluating whether to mount drive', 'blue');
-
-    const mountReturn = execSync('mount').toString();
-
-    if(mountReturn.includes(MOUNTPOINT)) {
-        return utils.msg(`${MOUNTPOINT} is already mounted!`, 'blue');
-    }
-
-    utils.pipe([
-        `printf "%s" "${mountphrase}"`,
-        `ecryptfs-add-passphrase > "${PASSPHRASE_TEMP_FILE}"`,
-    ]);
-
-    const sig = utils.pipe([
-        `tail -1 "${PASSPHRASE_TEMP_FILE}"`,
-        'awk \'{print $6}\'',
-        'sed "s/\\[//g"',
-        'sed "s/\\]//g"',
-        'sed "s/ //g"',
-    ]).toString();
-
-    utils.unlink(PASSPHRASE_TEMP_FILE);
-
-    mount(mountphrase, utils.toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
-
-    utils.msg(`${MOUNTPOINT} has been mounted!`, 'blue');
-}
+// function mountDrive() {
+//     utils.msg('Evaluating whether to mount drive', 'blue');
+//
+//     const mountReturn = execSync('mount').toString();
+//
+//     if(mountReturn.includes(MOUNTPOINT)) {
+//         return utils.msg(`${MOUNTPOINT} is already mounted!`, 'blue');
+//     }
+//
+//     utils.pipe([
+//         `printf "%s" "${mountphrase}"`,
+//         `ecryptfs-add-passphrase > "${PASSPHRASE_TEMP_FILE}"`,
+//     ]);
+//
+//     const sig = utils.pipe([
+//         `tail -1 "${PASSPHRASE_TEMP_FILE}"`,
+//         'awk \'{print $6}\'',
+//         'sed "s/\\[//g"',
+//         'sed "s/\\]//g"',
+//         'sed "s/ //g"',
+//     ]).toString();
+//
+//     utils.unlink(PASSPHRASE_TEMP_FILE);
+//
+//     mount(mountphrase, utils.toOneLine(sig, true), USB_DIR_TO_MOUNT, MOUNTPOINT);
+//
+//     utils.msg(`${MOUNTPOINT} has been mounted!`, 'blue');
+// }
 
 /**
  * Unmount the encrypted share and the external drive
  */
 
-function unmountDrive() {
-    const mountReturn = execSync('mount').toString();
-
-    if(!mountReturn.includes(MOUNTPOINT)) {
-        return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`.blue);
-    }
-
-    utils.run(`sudo umount ${MOUNTPOINT}`);
-    utils.msg(`Unmounted encrypted share at ${MOUNTPOINT}`, 'blue');
-
-    utils.run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
-    utils.msg(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`, 'blue');
-}
+// function unmountDrive() {
+//     const mountReturn = execSync('mount').toString();
+//
+//     if(!mountReturn.includes(MOUNTPOINT)) {
+//         return console.log(`Unable to unmount ${MOUNTPOINT} is not mounted!`.blue);
+//     }
+//
+//     utils.run(`sudo umount ${MOUNTPOINT}`);
+//     utils.msg(`Unmounted encrypted share at ${MOUNTPOINT}`, 'blue');
+//
+//     utils.run(`sudo umount ${EXTERNAL_DRIVE_MOUNTPOINT}`);
+//     utils.msg(`Unmounted external drive at ${EXTERNAL_DRIVE_MOUNTPOINT}`, 'blue');
+// }
 
 // function pipe(cmds) {
 //     const cmd = cmds.join(' | ');
@@ -111,12 +112,12 @@ function unmountDrive() {
 //     return dateFormat(now, 'YYYYMMDDHHmmss');
 // }
 
-function mount(passphrase, signature, pathToMount, pathToMountAt) {
-    const cmd = `sudo mount -t ecryptfs -o key=passphrase:passphrase_passwd=${passphrase},no_sig_cache=yes,verbose=no,cryptfs_sig=${signature},ecryptfs_cipher=aes,ecryptfs_key_bytes=16,ecryptfs_passthrough=no,ecryptfs_enable_filename_crypto=yes,ecryptfs_fnek_sig=${signature} "${pathToMount}" "${pathToMountAt}"`;
-
-    utils.run(cmd);
-    utils.msg(`${pathToMount} has been mounted at ${pathToMountAt}!`, 'blue');
-}
+// function mount(passphrase, signature, pathToMount, pathToMountAt) {
+//     const cmd = `sudo mount -t ecryptfs -o key=passphrase:passphrase_passwd=${passphrase},no_sig_cache=yes,verbose=no,cryptfs_sig=${signature},ecryptfs_cipher=aes,ecryptfs_key_bytes=16,ecryptfs_passthrough=no,ecryptfs_enable_filename_crypto=yes,ecryptfs_fnek_sig=${signature} "${pathToMount}" "${pathToMountAt}"`;
+//
+//     utils.run(cmd);
+//     utils.msg(`${pathToMount} has been mounted at ${pathToMountAt}!`, 'blue');
+// }
 
 /**
  * Sync dirs from local to encrypted external
@@ -160,9 +161,8 @@ sudo rsync -ah --stats --delete --max-size="10000k"
     // My Config Files
     const rsyncMyConfigFiles = `
 sudo rsync -ah --stats --delete
--f "- */"
--f "+ *"
-${HOME} "${HOME_TO}/my-configs"
+--filter="merge ${__dirname}/xps-rsync-filter-file.txt"
+"${HOME}/" "${HOME_TO}/my-configs"
 `;
 
     utils.run(utils.toOneLine(rsyncMyConfigFiles), true);
@@ -250,7 +250,7 @@ async function main() {
     utils.headingMsg(`XPS BACKUP
 Started at: ${started}`);
 
-    mountDrive();
+    xps.mountDrive(USB_DIR_TO_MOUNT, MOUNTPOINT, mountphrase);
     deltas.mountDrive = currentDelta(deltas.start);
 
     syncDirs();
@@ -265,7 +265,7 @@ Started at: ${started}`);
     // await glacier.upload(vault, `/tmp/${utils.NOW}-code-repository.tar.bz.gpg`, true);
     deltas.upload = currentDelta(deltas.bundleAndEncrypt.rawSplit);
 
-    unmountDrive();
+    xps.unmountDrive(MOUNTPOINT, EXTERNAL_DRIVE_MOUNTPOINT);
     deltas.unmountDrive = currentDelta(deltas.upload.rawSplit);
 
     const table = new Table({

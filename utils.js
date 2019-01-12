@@ -42,6 +42,8 @@ function basicRsync(from, to) {
 }
 
 function bundleAndEncrypt(vault, dir, passphrase) {
+    msg('Bundle and encryption started.', 'blue');
+
     const TEMP_NAME = `/tmp/${NOW}-${vault}.tar.bz`;
     run(`tar cvfj "${TEMP_NAME}" "${dir}"`);
     run(`gpg --yes --batch --passphrase="${passphrase}" -c "${TEMP_NAME}"`);
