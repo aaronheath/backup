@@ -159,6 +159,7 @@ sudo rsync -ah --stats --delete --max-size="10000k"
     utils.basicRsync(`${HOME}/VirtualBox VMs`, HOME_TO);
 
     // My Config Files
+    // TODO do I really need the sudo here, it triggers a password re-prompt, must be a better way of doing this
     const rsyncMyConfigFiles = `
 sudo rsync -ah --stats --delete
 --filter="merge ${__dirname}/xps-rsync-filter-file.txt"

@@ -49,8 +49,8 @@ function setup(vaultName, path, notifyRemote, debug) {
 function initMultipartUpload(resolve, reject) {
     glacier.initiateMultipartUpload(_params, (mpErr, multipart) => {
         if(mpErr) {
-            console.error('Error!', mpErr.stack);
-            reject(err);
+            console.error('Error!!', mpErr.stack);
+            reject(mpErr);
             return;
         }
 

@@ -54,6 +54,7 @@ function bundleAndEncrypt(vault, dir, passphrase) {
 
 async function upload(vault) {
     console.log(glacier);
+    console.log('filepath', `/tmp/${NOW}-${vault}.tar.bz.gpg`);
 
     return await glacier.upload(vault, `/tmp/${NOW}-${vault}.tar.bz.gpg`, true).catch(() => {
         msg('Upload failed!', 'red');
