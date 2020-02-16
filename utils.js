@@ -23,7 +23,14 @@ function run(cmd, showOutput = false) {
 }
 
 function unlink(path) {
-    fs.unlinkSync(path);
+    if(exists(path)) {
+        fs.unlinkSync(path);
+    }
+
+}
+
+function exists(path) {
+    return fs.existsSync(path);
 }
 
 function toOneLine(string, noSpace = false) {
@@ -83,6 +90,7 @@ module.exports = {
     pipe,
     run,
     unlink,
+    exists,
     toOneLine,
     currentYMDHMS,
     basicRsync,

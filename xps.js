@@ -143,6 +143,8 @@ sudo rsync -ah --stats --delete --max-size="10000k"
 "${CODE_DIR}" "${HOME_TO}"
 `;
 
+    console.log(rsyncCode);
+
     utils.run(utils.toOneLine(rsyncCode), true);
     utils.msg(`Rsync'd ${CODE_DIR} to ${HOME_TO}`, 'blue');
 
@@ -157,6 +159,9 @@ sudo rsync -ah --stats --delete --max-size="10000k"
 
     // Virtual Boxes
     utils.basicRsync(`${HOME}/VirtualBox VMs`, HOME_TO);
+
+    // Unlink insync logs db
+    utils.unlink('/home/aaronheath/.config/Insync/logs.db');
 
     // My Config Files
     // TODO do I really need the sudo here, it triggers a password re-prompt, must be a better way of doing this

@@ -47,7 +47,7 @@ function setup(vaultName, path, notifyRemote, debug) {
 }
 
 function initMultipartUpload(resolve, reject) {
-    glacier.initiateMultipartUpload(_params, (mpErr, multipart) => {
+    glacier.initiateMultipartUpload(_params, async (mpErr, multipart) => {
         if(mpErr) {
             console.error('Error!!', mpErr.stack);
             reject(mpErr);
@@ -75,13 +75,14 @@ function initMultipartUpload(resolve, reject) {
                 _sending.tick();
             }
 
-            uploadPart(partParams, resolve, reject, multipart);
-
+            await new Promise(partCompleted => {
+                uploadPart(partParams, resolve, reject, multipart, partCompleted);
+            });
         }
     });
 }
 
-function uploadPart(params, resolve, reject, multipart) {
+function uploadPart(params, resolve, reject, multipart, partCompleted) {
     glacier.uploadMultipartPart(params, function(multiErr, mData) {
         if(multiErr) {
             console.log('Retry request');
@@ -94,6 +95,7 @@ function uploadPart(params, resolve, reject, multipart) {
             console.log(`Completed part ${i/_partSize}`);
         } else {
             _completed.tick();
+            partCompleted();
         }
 
         if(--_numPartsLeft > 0) { // complete only when all parts uploaded
