@@ -1,5 +1,5 @@
 module.exports = {
-    mount_phrase: 'password to mount encyrpted share',
+    mount_phrase: 'password to mount encrypted share',
     gpg_pass_phrase: 'password to encrypt tar bundle',
 
     // AWS Glacier remote logging endpoint

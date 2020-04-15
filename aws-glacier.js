@@ -10,7 +10,19 @@ aws.config.update({region: 'ap-southeast-2'});
 
 const glacier = new aws.Glacier({apiVersion: '2012-06-01'});
 
-let _vaultName, _path, _debug, _buffer, _partSize, _numPartsLeft, _chunkCount, _startTime, _params, _sending, _completed, _treeHash, _notifyRemote;
+let _vaultName,
+    _path,
+    _debug,
+    _buffer,
+    _partSize,
+    _numPartsLeft,
+    _chunkCount,
+    _startTime,
+    _params,
+    _sending,
+    _completed,
+    _treeHash,
+    _notifyRemote;
 
 async function upload(vaultName, path, notifyRemote = false, debug = false) {
     setup(vaultName, path, notifyRemote, debug);
@@ -170,10 +182,10 @@ async function sendNotificationToRemote(data) {
 
         console.log('Notification of AWS Glacier upload dispatched to remote server.');
     } catch(error) {
-        // utils.rowStars('red');
-        // utils.msg('Unable to dispatch notification of AWS Glacier upload to remote server.')
+        utils.rowStars('red');
+        utils.msg('Unable to dispatch notification of AWS Glacier upload to remote server.')
         console.error(error.response);
-        // utils.rowStars('red');
+        utils.rowStars('red');
     }
 }
 
